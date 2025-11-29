@@ -1,0 +1,53 @@
+# Cargo.toml
+[workspace]
+resolver = "2"
+
+members = [
+    "modules/obmm-rs",
+]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+authors = ["Nash Zhou <zhouhaipeng@nuaa.edu.cn>"]
+categories = ["memory management"]
+keywords = ["memory management", "distributed systems", "rust"]
+readme = "README.md"
+repository = "https://github.com/yxalix/memlink-rs"
+
+[workspace.dependencies]
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+libc = "0.2"
+bindgen = "0.72"
+log = "0.4"
+
+# Main binary crate
+[package]
+name = "memlink-rs"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "A distributed memory pool manager system"
+categories.workspace = true
+keywords.workspace = true
+readme.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "memlink"
+path = "memlink/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+libc.workspace = true
+obmm-rs = { path = "modules/obmm-rs", features = ["hook"] }
+clap = { version = "4.0", features = ["derive"] }
+env_logger = "0.10"
+log = "0.4"
