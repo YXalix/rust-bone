@@ -62,8 +62,6 @@
     clippy::modulo_arithmetic,
     clippy::multiple_inherent_impl,
     clippy::pattern_type_mismatch,
-    clippy::print_stderr,
-    clippy::print_stdout,
     clippy::rc_buffer,
     clippy::rc_mutex,
     clippy::rest_pat_in_fully_bound_structs,
@@ -453,25 +451,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_export() {
+    fn test_export() -> anyhow::Result<()> {
         let mut lengths = vec![0; MAX_NUMA_NODES];
-        lengths[1] = 1024 * 1024 * 128; // 128MB on NUMA node 1
+        if let Some(v) = lengths.get_mut(0) {
+            *v = 1024 * 1024 * 64; // 64MB on NUMA node 0
+        }
         let flags = ObmmExportFlags::ALLOWMMAP;
         match mem_export::<UbPrivData>(&lengths, flags) {
             Ok((memid, desc)) => {
-                println!("Exported MemID: {}", memid);
-                println!("Memory Descriptor: {:?}", desc);
+                println!("Exported MemID: {memid}");
+                println!("Memory Descriptor: {desc:?}");
                 assert!(memid != OBMM_INVALID_MEMID);
                 assert!(desc.length == 1024 * 1024 * 128);
+                Ok(())
             }
             Err(code) => {
-                panic!("mem_export failed with code {}", code);
+                Err(anyhow::anyhow!("mem_export failed with code {code}"))
             }
         }
     }
 
     #[test]
-    fn test_import() {
+    fn test_import() -> anyhow::Result<()> {
         let desc = ObmmMemDesc::<UbPrivData> {
             addr: 0xffff_fc00_0000,
             length: 1024 * 1024 * 128,
@@ -486,17 +487,18 @@ mod tests {
         let flags = ObmmExportFlags::ALLOWMMAP;
         match mem_import(&desc, flags, 0) {
             Ok((memid, numa)) => {
-                println!("Imported MemID: {}, NUMA Node: {}", memid, numa);
+                println!("Imported MemID: {memid}, NUMA Node: {numa}");
                 assert!(memid != OBMM_INVALID_MEMID);
+                Ok(())
             }
             Err(code) => {
-                panic!("mem_import failed with code {}", code);
+                Err(anyhow::anyhow!("mem_import failed with code {code}"))
             }
         }
     }
 
     #[test]
-    fn test_serialization() {
+    fn test_serialization() -> anyhow::Result<()> {
         let desc = ObmmMemDesc::<UbPrivData> {
             addr: 0xffff_fc00_0000,
             length: 1024 * 1024 * 128,
@@ -508,9 +510,9 @@ mod tests {
             priv_len: 2,
             priv_data: UbPrivData::OCHIP | UbPrivData::CACHEABLE,
         };
-        let json_str = desc.to_json().unwrap();
-        println!("Serialized JSON: {}", json_str);
-        let deserialized_desc: ObmmMemDesc<UbPrivData> = ObmmMemDesc::from_json(&json_str).unwrap();
+        let json_str = desc.to_json()?;
+        println!("Serialized JSON: {json_str}");
+        let deserialized_desc = ObmmMemDesc::<UbPrivData>::from_json(&json_str)?;
         assert_eq!(desc.addr, deserialized_desc.addr);
         assert_eq!(desc.length, deserialized_desc.length);
         assert_eq!(desc.seid, deserialized_desc.seid);
@@ -520,7 +522,9 @@ mod tests {
         assert_eq!(desc.dcna, deserialized_desc.dcna);
         assert_eq!(desc.priv_len, deserialized_desc.priv_len);
         assert_eq!(desc.priv_data, deserialized_desc.priv_data);
+        Ok(())
     }
+
     #[test]
     fn test_deserialization() -> anyhow::Result<()> {
         let json_str = r#"{
@@ -535,7 +539,7 @@ mod tests {
             "priv_data": "OCHIP | CACHEABLE"
         }"#;
         let desc = ObmmMemDesc::<UbPrivData>::from_json(json_str)?;
-        println!("Deserialized ObmmMemDesc: {:?}", desc);
+        println!("Deserialized ObmmMemDesc: {desc:?}");
         assert_eq!(desc.addr, 0xffff_fc00_0000);
         assert_eq!(desc.length, 1024 * 1024 * 128);
         assert_eq!(desc.tokenid, 42);
